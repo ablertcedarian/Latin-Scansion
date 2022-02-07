@@ -1,0 +1,288 @@
+diphthongs = ["ae", "au", "ei", "eu", "oe", "ui"]
+vowels = ['2', 'a', 'e', 'i', 'o', 'u']
+mcons = ["b", "c", "d", "f", "g", "p", "t"]
+lcons = ["l", "r"]
+allcons = ['1', 'b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r', 's', 't', 'v', 'w', 'x', 'y', 'z']
+hardcons = ["x", "z"]
+
+def dipp(lline):
+    #convert all diphthongs to uppercase
+    dipcounter = 0
+    for i in range(len(lline)):
+        x = lline[i:i+2]
+        if x.lower() in diphthongs:
+            lline = lline[:i] + "2" + lline[i+2:]
+            dipcounter += 1
+    #treat qu as a single consonant 
+    #treat mute+liquid as single consnant 
+    for i in range(len(lline)):
+        x = lline[i:i+1]
+        if x == "u" and lline[i-1:i] == "q":
+            lline = lline[:i-1] + "1" + lline[i+1:]
+        if x in mcons and lline[i+1:i+2] in lcons:
+            lline = lline[:i] + "1" + lline[i+2:]
+    return lline, dipcounter
+
+#if i is a consonant, convert to j
+def ij(lline):
+    for i in range(len(lline)):
+        x = lline[i:i+1]
+        if x == "i":
+            before = ""
+            after = ""
+            if i > 0: 
+                before = lline[i-1:i]
+            if i < len(lline):
+                after = lline[i+1:i+2]
+            if after.lower() in vowels and (before in vowels or before == " " or before == ""): 
+                lline = lline[:i] + "j" + lline[i+1:]
+    return lline
+
+#ellide-put parentheses around letters to be elided
+def ellide(lline, eline):
+    dipselided = 0
+    for i in range(len(eline)):
+        x = eline[i:i+1]
+        if x == " ":
+            before = eline[i-1:i]
+            beforeyes = False
+            dip = False
+            m = False
+            end = i-1
+            if before.isupper():
+                before = eline[i-2:i]
+                dip = True
+                end = i-2
+                dipselided += 1
+            if before == "m":
+                m = True
+                end = i-2
+                before = eline[i-2:i]
+                if eline[i-2:i-1].isupper():
+                    before = eline[i-3:i]
+                    end = i-3
+
+            after = ""
+            afteryes = False
+            if eline[i+1:i+2] != "":
+                after = eline[i+1:i+2]
+
+            if before in vowels or before[0].isupper() or before[-1] == "m":
+                beforeyes = True
+            if after in vowels or after.isupper() or after == "h":
+                afteryes = True
+
+            if beforeyes == True and afteryes == True:
+                if dip == True:
+                    eline = eline[:end] + "0000" + eline[i:]
+                else:
+                    eline = eline[:end] + "000" + eline[i:]
+
+    dipselided = 0
+    for i in range(len(lline)):
+        x = lline[i:i+1]
+        if x == " ":
+            before = lline[i-1:i]
+            beforeyes = False
+            dip = False
+            m = False
+            end = i-1
+            if before.isupper():
+                before = lline[i-2:i]
+                dip = True
+                end = i-2
+                dipselided += 1
+            if before == "m":
+                m = True
+                end = i-2
+                before = lline[i-2:i]
+                if lline[i-2:i-1].isupper():
+                    before = lline[i-3:i]
+                    end = i-3
+
+            after = ""
+            afteryes = False
+            if lline[i+1:i+2] != "":
+                after = lline[i+1:i+2]
+
+            if before in vowels or before[0].isupper() or before[-1] == "m":
+                beforeyes = True
+            if after in vowels or after.isupper() or after == "h":
+                afteryes = True
+
+            if beforeyes == True and afteryes == True:
+                lline = lline[:end] + "(" + before + ")" + lline[i:]
+    
+    eline = eline.replace("0", "")
+    return lline, eline, dipselided
+
+#count the number of syllables post-ellision
+def count(eline, dipcounter, dipselided):
+    vowelcounter = 0
+    for i in range(len(eline)):
+        letter = eline[i:i+1]
+        if letter.lower() in vowels and letter != "I":
+            vowelcounter += 1
+        if letter == "2":
+            vowelcounter += 1
+    syllablecounter = vowelcounter - (dipcounter - dipselided)
+    return syllablecounter
+
+#scan
+def scan(eline, dips, dipse, bypass=False, Show=False):
+    #scan greedily, starting from the right 
+    syllables = count(eline, dips, dipse)
+    if bypass == False:
+        if syllables < 13:
+            print("Not enough syllables for dactyllic hexameter")
+            return
+        elif syllables > 17:
+            print("Too many syllables for dactyllic hexameter")
+            return
+    #with a little calculation we can find that the number of spondees is 18-the number of syllables
+    predspondees = 18 - syllables
+    preddactyls = 6 - predspondees
+    print("Dactyls: ", preddactyls)
+    print("Spondees: ", predspondees)
+    
+    rawmeter = [None] * syllables
+    rawmeter[-1] = "X"
+    rawmeter[-2] = "l"
+    rawmeter[-3] = "u"
+    rawmeter[-4] = "u"
+    rawmeter[-5] = "l"
+    if Show == True:
+        print("Base", rawmeter)
+    
+    numvowels = 0
+    #mark all necessarily long 
+    for i in range(1, len(eline)):
+        x = eline[-i]
+        after1 = eline[-i+1]
+        after2 = eline[-i+2]
+        after3 = eline[-i+3]
+        if x in vowels:
+            numvowels += 1 
+            if numvowels > 5:
+                if x == "2":
+                    rawmeter[-numvowels] = "l"
+                elif after1 in hardcons:
+                    rawmeter[-numvowels] = "l"
+                elif after1 in allcons and after2 in allcons:
+                    rawmeter[-numvowels] = "l"
+                elif after1 == " " and (after2 in allcons and after3 in allcons):
+                    rawmeter[-numvowels] = "l"
+                elif after1 in allcons and after2 == " " and after3 in allcons:
+                    rawmeter[-numvowels] = "l"
+                elif after1 == " " and after2 in hardcons:
+                    rawmeter[-numvowels] = "l"
+    if Show == True:
+        print("Necessarily long", rawmeter)
+    
+    #count num solved from the end 
+    newfoot = True
+    dactylflip = False 
+    end = syllables - 5
+    for i in range(1, len(rawmeter)+1):
+        x = rawmeter[-i]
+        if x == "l" and newfoot == True:
+            newfoot = False
+        elif x == "l" and newfoot == False:
+            newfoot = True 
+        elif x == "u" and dactylflip == False:
+            dactylflip = True
+            newfoot = False
+        elif x == "u" and dactylflip == True:
+            dactylflip = False 
+            newfoot = False 
+        if x != None:
+            end = i
+            
+    #try and make everything a dactyl 
+    dactyls = 1
+    solved = 5 
+    for i in range(6, len(rawmeter)+1):
+        x = rawmeter[-i]
+        
+        #figure out if new foot
+        new = True 
+        for j in range(6, i):
+            checking = rawmeter[-j]
+            if new == True:
+                if checking == "l":
+                    new = False
+                elif checking == "u":
+                    new = False
+            elif new == False:
+                if checking == "l":
+                    new = True
+                elif checking == "u":
+                    new = False   
+            
+        if x != "u" and x != "l" and x != "X":
+            before1 = ""
+            if i < len(rawmeter):
+                before1 = rawmeter[-i-1]
+            after1 = rawmeter[-i+1]
+            after2 = rawmeter[-i+2]
+            after3 = rawmeter[-i+3]
+            
+            if new == True:
+                solved += 1 
+                if before1 == None and dactyls < preddactyls:
+                    rawmeter[-i] = "u"
+                    dactyls += 1
+                else:
+                    rawmeter[-i] = "l"
+            elif new == False:
+                solved += 1 
+                if after1 == "u" and after2 == "l":
+                    rawmeter[-i] = "u"
+                elif after1 == "u" and after2 == "u":
+                    rawmeter[-i] = "l"
+                elif after1 == "l":
+                    rawmeter[-i] = "l"
+    for i in range(len(rawmeter)):
+        if rawmeter[i] == "l":
+            rawmeter[i] = "—"
+    return rawmeter
+
+#impose onto text
+def impose(meter, eline):
+    counter = 0
+    for i in range(len(eline)):
+        char = eline[i]
+        if char in vowels and counter < len(meter):
+            if meter[counter] == "—":
+                eline = eline[:i] + "\u0332".join(char) + eline[i+1:]
+            elif meter[counter] == "u":
+                eline = eline[:i] + "\u02D8".join(char) + elin[i+1:]
+    return eline
+                    
+#Run
+def main(oline):
+    lline = oline.lower()
+    
+    lline, dips = dipp(lline)
+    lline = ij(lline)
+
+    eline = lline
+
+    lline, eline, dipse = ellide(lline, eline)
+    meter = scan(eline, dips, dipse, True, Show=False)
+    print("Final", meter)
+
+    fline = impose(meter, eline)
+    
+    print(oline)
+    print(lline)
+    print(fline)
+    #print(eline)
+
+testbank = ["Arma virumque cano Troiae qui primus ab oris", 
+            "Italiam fato profugus Lavinaque venit", 
+            "Littora multum ille et terris, iactatus et alto", 
+            "Vi superum saevae memorem Iunonis ob iram", 
+            "Multa quoque et bello passus dum conderet urbem"]
+
+main(testbank[1])
